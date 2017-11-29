@@ -10,14 +10,14 @@ The playbook requires that the following dependencies have been met before first
 This playbook relies on the following variables being defined in the inventory file.
 An example would be as follows:
 
-[f5-devices]
+[f5-devices]<br>
 bigip1
 
-[f5-devices:vars]
-F5_USER=admin
-F5_PASSWORD=<password>
-F5_SERVER_PORT=443
-F5_VALIDATE_CERTS=NO
+[f5-devices:vars]<br>
+F5_USER=admin<br>
+F5_PASSWORD=<password><br>
+F5_SERVER_PORT=443<br>
+F5_VALIDATE_CERTS=NO<br>
 
 It is recommended that the inventory file is encrypted using ansible-vault to protect the account details. 
 
@@ -25,26 +25,26 @@ The variables are currently defined in the playbook, you should adjust the playb
 
 The playbook currently configures the following:
 
-Partitions
-Route-domains
-VLANs
-Associate VLANs with Route-domains
-Self IP's (both local and floating)
-ICMP monitors
-Nodes
+Partitions<br>
+Route-domains<br>
+VLANs<br>
+Associate VLANs with Route-domains<br>
+Self IP's (both local and floating)<br>
+ICMP monitors<br>
+Nodes<br>
 
 To be added in the future:
 
-Additional monitors (TCP, UDP, HTTP and HTTPS)
-Pools
-Virtual-Servers
-Source-NAT
+Additional monitors (TCP, UDP, HTTP and HTTPS)<br>
+Pools<br>
+Virtual-Servers<br>
+Source-NAT<br>
 
 
 # Tested with the software versions
 
-BIGIP 11.6.1
-Ansible 2.4
+BIGIP 11.6.1<br>
+Ansible 2.4<br>
 
 
 
