@@ -1,0 +1,246 @@
+- name: BIG IP Configuration
+  hosts: ansible-big-ip
+  connection: local
+
+  vars:
+    F5_SERVER: "{{ inventory_hostname }}"
+
+  tasks:
+  - name: Configuring partitions and route-domains
+    bigip_command:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      commands:
+        - "create auth partition {{ item.partition }}"
+        - "create net route-domain /{{ item.partition }}/rd_{{ item.partition }} { id {{ item.rd_id }} }"
+        - "modify auth partition {{ item.partition }} { default-route-domain {{ item.rd_id }} }"
+    with_items:
+      - { partition : T1, rd_id: 1 }
+      - { partition : T2-APP1, rd_id: 2 }
+      - { partition : T2-APP2, rd_id: 3 }
+      - { partition : T2-APP3, rd_id: 4 }
+      - { partition : T3-DB1, rd_id: 5 }
+      - { partition : T3-DB2, rd_id: 6 }
+      - { partition : T3-DB3, rd_id: 7 }
+      - { partition : APP-MGMT, rd_id: 10 }
+      - { partition : MONITORING, rd_id: 20 }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Configuring VLANS
+    bigip_vlan:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      tagged_interface: "{{ item.tag_int }}"
+      name: "{{ item.name }}"
+      tag: "{{ item.tag }}"
+      partition: "{{ item.partition }}"
+
+    with_items:
+      - { name: VLAN10, tag: 10, tag_int: 1.7, partition : T1 }
+      - { name: VLAN11, tag: 11, tag_int: 1.7, partition : T1 }
+      - { name: VLAN12, tag: 12, tag_int: 1.7, partition : T2-APP1 }
+      - { name: VLAN13, tag: 13, tag_int: 1.7, partition : T2-APP1 }
+      - { name: VLAN14, tag: 14, tag_int: 1.7, partition : T2-APP2 }
+      - { name: VLAN15, tag: 15, tag_int: 1.7, partition : T2-APP2 }
+      - { name: VLAN16, tag: 16, tag_int: 1.7, partition : T2-APP3 }
+      - { name: VLAN17, tag: 17, tag_int: 1.7, partition : T2-APP3 }
+      - { name: VLAN18, tag: 18, tag_int: 1.7, partition : T3-DB1 }
+      - { name: VLAN19, tag: 19, tag_int: 1.7, partition : T3-DB1 }
+      - { name: VLAN20, tag: 20, tag_int: 1.7, partition : T3-DB2 }
+      - { name: VLAN21, tag: 21, tag_int: 1.7, partition : T3-DB2 }
+      - { name: VLAN22, tag: 22, tag_int: 1.7, partition : T3-DB3 }
+      - { name: VLAN23, tag: 23, tag_int: 1.7, partition : T3-DB3 }
+      - { name: VLAN24, tag: 24, tag_int: 1.7, partition : APP-MGMT }
+      - { name: VLAN25, tag: 25, tag_int: 1.7, partition : APP-MGMT }
+      - { name: VLAN100, tag: 100, tag_int: 1.7, partition : MONITORING }
+      - { name: VLAN101, tag: 101, tag_int: 1.7, partition : MONITORING }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Associate VLANs with correct route-domains
+    bigip_command:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      commands:
+        - "modify net route-domain /{{ item.partition }}/rd_{{ item.partition }} vlans add { {{ item.vlan }} }"
+
+    with_items:
+      - { partition: T1, vlan: VLAN10 }
+      - { partition: T1, vlan: VLAN11 }
+      - { partition: T2-APP1, vlan: VLAN12 }
+      - { partition: T2-APP1, vlan: VLAN13 }
+      - { partition: T2-APP2, vlan: VLAN14 }
+      - { partition: T2-APP2, vlan: VLAN15 }
+      - { partition: T2-APP3, vlan: VLAN16 }
+      - { partition: T2-APP3, vlan: VLAN17 }
+      - { partition: T3-DB1, vlan: VLAN18 }
+      - { partition: T3-DB1, vlan: VLAN19 }
+      - { partition: T3-DB2, vlan: VLAN20 }
+      - { partition: T3-DB2, vlan: VLAN21 }
+      - { partition: T3-DB3, vlan: VLAN22 }
+      - { partition: T3-DB3, vlan: VLAN23 }
+      - { partition: APP-MGMT, vlan: VLAN24 }
+      - { partition: APP-MGMT, vlan: VLAN25 }
+      - { partition: MONITORING, vlan: VLAN100 }
+      - { partition: MONITORING, vlan: VLAN101 }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Configuring Self IPs
+    bigip_selfip:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      vlan: "{{ item.vlan }}"
+      name: "{{ item.type }}_{{ item.vlan }}"
+      address: "{{ item.ipaddr }}"
+      netmask: "{{ item.netmask }}"
+      route_domain: "{{ item.rd_id }}"
+      partition: "{{ item.partition }}"
+      allow_service: "{{ item.allow }}"
+      traffic_group: "{{ item.trafficgroup }}"
+    with_items:
+      - { type: Self, vlan: VLAN10, ipaddr: "192.168.10.252", netmask: "255.255.255.0", allow: default, rd_id: 1, partition: T1, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN10, ipaddr: "192.168.10.254", netmask: "255.255.255.0", allow: default, rd_id: 1, partition: T1, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN11, ipaddr: "192.168.11.252", netmask: "255.255.255.0", allow: default, rd_id: 1, partition: T1, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN11, ipaddr: "192.168.11.254", netmask: "255.255.255.0", allow: default, rd_id: 1, partition: T1, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN12, ipaddr: "192.168.12.252", netmask: "255.255.255.0", allow: default, rd_id: 2, partition: T2-APP1, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN12, ipaddr: "192.168.12.254", netmask: "255.255.255.0", allow: default, rd_id: 2, partition: T2-APP1, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN13, ipaddr: "192.168.13.252", netmask: "255.255.255.0", allow: default, rd_id: 2, partition: T2-APP1, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN13, ipaddr: "192.168.13.254", netmask: "255.255.255.0", allow: default, rd_id: 2, partition: T2-APP1, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN14, ipaddr: "192.168.14.252", netmask: "255.255.255.0", allow: default, rd_id: 3, partition: T2-APP2, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN14, ipaddr: "192.168.14.254", netmask: "255.255.255.0", allow: default, rd_id: 3, partition: T2-APP2, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN15, ipaddr: "192.168.15.252", netmask: "255.255.255.0", allow: default, rd_id: 3, partition: T2-APP2, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN15, ipaddr: "192.168.15.254", netmask: "255.255.255.0", allow: default, rd_id: 3, partition: T2-APP2, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN16, ipaddr: "192.168.16.252", netmask: "255.255.255.0", allow: default, rd_id: 4, partition: T2-APP3, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN16, ipaddr: "192.168.16.254", netmask: "255.255.255.0", allow: default, rd_id: 4, partition: T2-APP3, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN17, ipaddr: "192.168.17.252", netmask: "255.255.255.0", allow: default, rd_id: 4, partition: T2-APP3, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN17, ipaddr: "192.168.17.254", netmask: "255.255.255.0", allow: default, rd_id: 4, partition: T2-APP3, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN18, ipaddr: "192.168.18.252", netmask: "255.255.255.0", allow: default, rd_id: 5, partition: T3-DB1, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN18, ipaddr: "192.168.18.254", netmask: "255.255.255.0", allow: default, rd_id: 5, partition: T3-DB1, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN19, ipaddr: "192.168.19.252", netmask: "255.255.255.0", allow: default, rd_id: 5, partition: T3-DB1, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN19, ipaddr: "192.168.19.254", netmask: "255.255.255.0", allow: default, rd_id: 5, partition: T3-DB1, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN20, ipaddr: "192.168.20.252", netmask: "255.255.255.0", allow: default, rd_id: 6, partition: T3-DB2, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN20, ipaddr: "192.168.20.254", netmask: "255.255.255.0", allow: default, rd_id: 6, partition: T3-DB2, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN21, ipaddr: "192.168.21.252", netmask: "255.255.255.0", allow: default, rd_id: 6, partition: T3-DB2, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN21, ipaddr: "192.168.21.254", netmask: "255.255.255.0", allow: default, rd_id: 6, partition: T3-DB2, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN22, ipaddr: "192.168.22.252", netmask: "255.255.255.0", allow: default, rd_id: 7, partition: T3-DB3, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN22, ipaddr: "192.168.22.254", netmask: "255.255.255.0", allow: default, rd_id: 7, partition: T3-DB3, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN23, ipaddr: "192.168.23.252", netmask: "255.255.255.0", allow: default, rd_id: 7, partition: T3-DB3, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN23, ipaddr: "192.168.23.254", netmask: "255.255.255.0", allow: default, rd_id: 7, partition: T3-DB3, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN24, ipaddr: "192.168.24.252", netmask: "255.255.255.0", allow: default, rd_id: 10, partition: APP-MGMT, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN24, ipaddr: "192.168.24.254", netmask: "255.255.255.0", allow: default, rd_id: 10, partition: APP-MGMT, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN25, ipaddr: "192.168.25.252", netmask: "255.255.255.0", allow: default, rd_id: 10, partition: APP-MGMT, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN25, ipaddr: "192.168.25.254", netmask: "255.255.255.0", allow: default, rd_id: 10, partition: APP-MGMT, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN100, ipaddr: "192.168.100.252", netmask: "255.255.255.0", allow: default, rd_id: 20, partition: MONITORING, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN100, ipaddr: "192.168.100.254", netmask: "255.255.255.0", allow: default, rd_id: 20, partition: MONITORING, trafficgroup: /Common/traffic-group-1 }
+      - { type: Self, vlan: VLAN101, ipaddr: "192.168.101.252", netmask: "255.255.255.0", allow: default, rd_id: 20, partition: MONITORING, trafficgroup: /Common/traffic-group-local-only }
+      - { type: Float, vlan: VLAN101, ipaddr: "192.168.101.254", netmask: "255.255.255.0", allow: default, rd_id: 20, partition: MONITORING, trafficgroup: /Common/traffic-group-1 }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Creating ICMP monitors which will be associated with nodes
+    bigip_command:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      commands:
+        - "create ltm monitor icmp /{{ item.partition }}/icmp { defaults-from /Common/icmp interval {{ item.interval }} timeout {{ item.timeout }} time-until-up {{ item.timeuntilup }} }"
+
+    with_items:
+      - { partition: T1, interval: 2, timeout: 4, timeuntilup: 4 }
+      - { partition: T2-APP1, interval: 2, timeout: 4, timeuntilup: 4 }
+      - { partition: T2-APP2, interval: 2, timeout: 4, timeuntilup: 4 }
+      - { partition: T2-APP3, interval: 2, timeout: 4, timeuntilup: 4 }
+      - { partition: T3-DB1, interval: 2, timeout: 4, timeuntilup: 4 }
+      - { partition: T3-DB2, interval: 2, timeout: 4, timeuntilup: 4 }
+      - { partition: T3-DB3, interval: 2, timeout: 4, timeuntilup: 4 }
+      - { partition: APP-MGMT, interval: 2, timeout: 4, timeuntilup: 4 }
+      - { partition: MONITORING, interval: 2, timeout: 4, timeuntilup: 4 }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+
+
+  - name: Configuring nodes
+    bigip_node:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      state: "present"
+      partition: "{{ item.partition }}"
+      host: "{{ item.ip_address }}"
+      name: "{{ item.nodename }}"
+      description: "{{ item.description }}"
+      monitors:
+        - /{{ item.partition }}/icmp
+    with_items:
+      - { nodename : syslog, partition : Common, ip_address : "192.168.1.142", description : "Syslog server" }
+      - { nodename : t1-dmz1, partition : T1, ip_address : "192.168.11.11", description : "DMZ1 server" }
+      - { nodename : t1-dmz2, partition : T1, ip_address : "192.168.11.12", description : "DMZ1 server" }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Configuring TCP Monitors
+    bigip_monitor_tcp_half_open:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      state: "present"
+      name: "{{ item.name }}"
+      partition: "{{ item.partition }}"
+      port: "{{ item.port }}"
+      interval: 2
+      timeout: 4
+      time-until-up: 4
+    with_items:
+      - { name : tcp_443, partition : T1, port : 443 }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
