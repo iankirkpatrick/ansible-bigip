@@ -32,14 +32,17 @@ Associate VLANs with Route-domains<br>
 Self IP's (both local and floating)<br>
 ICMP monitors<br>
 Nodes<br>
+Basic Pools<br>
+Basic Virtual-servers fastL4 without SSL offloading or SNAT<br>
+TCP half open monitors<br>
 
 To be added in the future:
 
-Additional monitors (TCP, UDP, HTTP and HTTPS)<br>
-Pools<br>
-Virtual-Servers<br>
-Source-NAT<br>
-
+Additional monitors (UDP, HTTP and HTTPS)<br>
+Pools using priority groups and other lb_methods than round-robin<br>
+Virtual-Servers with SSL offloading and or Source NAT<br>
+Source-NAT pools<br>
+iRules<br>
 
 # Tested with the software versions
 

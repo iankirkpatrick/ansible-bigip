@@ -167,6 +167,33 @@
 
   -  debug: var=print_output
 
+  - name: Creating default routes for each route-domain
+    bigip_command:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      commands:
+        - "create net route /{{ item.partition }}/default-route { network 0.0.0.0/0 gw {{ item.gateway }} }"
+
+    with_items:
+      - { partition: T1, gateway: '192.168.10.1' }
+      - { partition: T2-APP1, gateway: '192.168.12.1' }
+      - { partition: T2-APP2, gateway: '192.168.14.1' }
+      - { partition: T2-APP3, gateway: '192.168.16.1' }
+      - { partition: T3-DB1, gateway: '192.168.18.1' }
+      - { partition: T3-DB2, gateway: '192.168.20.1' }
+      - { partition: T3-DB3, gateway: '192.168.22.1' }
+      - { partition: APP-MGMT, gateway: '192.168.24.1' }
+      - { partition: MONITORING, gateway: '192.168.100.1' }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
   - name: Creating ICMP monitors which will be associated with nodes
     bigip_command:
       server: "{{ F5_SERVER }}"
@@ -212,8 +239,8 @@
         - /{{ item.partition }}/icmp
     with_items:
       - { nodename : syslog, partition : Common, ip_address : "192.168.1.142", description : "Syslog server" }
-      - { nodename : t1-dmz1, partition : T1, ip_address : "192.168.11.11", description : "DMZ1 server" }
-      - { nodename : t1-dmz2, partition : T1, ip_address : "192.168.11.12", description : "DMZ1 server" }
+      - { nodename : t1-dmz1, partition : T1, ip_address : "192.168.11.11%1", description : "DMZ1 server" }
+      - { nodename : t1-dmz2, partition : T1, ip_address : "192.168.11.12%1", description : "DMZ2 server" }
 
     delegate_to: localhost
 
@@ -234,9 +261,12 @@
       port: "{{ item.port }}"
       interval: 2
       timeout: 4
-      time-until-up: 4
+      time_until_up: 4
     with_items:
       - { name : tcp_443, partition : T1, port : 443 }
+      - { name : tcp_80, partition : T1, port : 80 }
+      - { name : tcp_8080, partition : T1, port : 8080 }
+      - { name : tcp_8081, partition : T1, port : 8081 }
 
     delegate_to: localhost
 
@@ -244,3 +274,83 @@
 
   -  debug: var=print_output
 
+  - name: Creating LTM pools
+    bigip_pool:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      state: "present"
+      name: "{{ item.name }}"
+      partition: "{{ item.partition }}"
+      lb_method: "round_robin"
+      monitors: "{{ item.monitors }}"
+      monitor_type: "and_list"
+    with_items:
+      - { name : https-servers, partition : T1, monitors : 'tcp_443' }
+      - { name : http-servers, partition : T1, monitors : 'tcp_80' }
+      - { name : http-proxy-servers, partition : T1, monitors : 'tcp_8080' }
+      - { name : https-proxy-servers, partition : T1, monitors : 'tcp_8081' }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Assigning nodes to LTM pools
+    bigip_pool_member:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      state: "present"
+      pool: "{{ item.name }}"
+      partition: "{{ item.partition }}"
+      port: "{{ item.port }}"
+      host: "{{ item.hosts }}"
+    with_items:
+      - { name : https-servers, partition : T1, hosts : 't1-dmz1', port: '443' }
+      - { name : https-servers, partition : T1, hosts : 't1-dmz2', port: '443' }
+      - { name : http-servers, partition : T1, hosts : 't1-dmz1', port: '80' }
+      - { name : http-servers, partition : T1, hosts : 't1-dmz2', port: '80' }
+      - { name : http-proxy-servers, partition : T1, hosts : 't1-dmz1', port: '8080' }
+      - { name : http-proxy-servers, partition : T1, hosts : 't1-dmz2', port: '8080' }
+      - { name : https-proxy-servers, partition : T1, hosts : 't1-dmz1', port: '8081' }
+      - { name : https-proxy-servers, partition : T1, hosts : 't1-dmz2', port: '8081' }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Creating LTM virtual-servers
+    bigip_virtual_server:
+      server: "{{ F5_SERVER }}"
+      user: "{{ F5_USER }}"
+      password: "{{ F5_PASSWORD }}"
+      server_port: "{{ F5_SERVER_PORT }}"
+      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      state: "present"
+      name: "{{ item.name }}"
+      partition: "{{ item.partition }}"
+      destination: "{{ item.destination }}"
+      port: "{{ item.port }}"
+      pool: "{{ item.pool }}"
+      all_profiles:
+        - /Common/fastL4
+      snat: None
+    with_items:
+      - { name : https-servers-vip, partition : T1, destination: 192.168.11.101, pool : https-servers, port: '443' }
+      - { name : http-servers-vip, partition : T1, destination: 192.168.11.102, pool : http-servers, port: '80' }
+      - { name : http-proxy-servers-vip, partition : T1, destination: 192.168.11.103, pool : http-proxy-servers, port: '8080' }
+      - { name : https-proxy-servers-vip, partition : T1, destination: 192.168.11.104, pool : https-proxy-servers, port: '8081' }
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
