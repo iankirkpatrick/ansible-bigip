@@ -1,0 +1,4 @@
+nodename,partition,ip_address,description
+syslog,Common,"192.168.1.142","Syslog server"
+t1-dmz1,T1,"192.168.11.11%1","DMZ1 server"
+t1-dmz2,T1,"192.168.11.12%1","DMZ2 server"

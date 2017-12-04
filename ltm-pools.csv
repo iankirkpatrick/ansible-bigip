@@ -1,0 +1,5 @@
+name,partition,monitors
+https-servers,T1,'tcp_443'
+http-servers,T1,'tcp_80'
+http-proxy-servers,T1,'tcp_8080'
+https-proxy-servers,T1,'tcp_8081'

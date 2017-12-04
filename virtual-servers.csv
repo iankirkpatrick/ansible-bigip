@@ -1,0 +1,6 @@
+name,partition,destination,pool,port
+https-servers-vip,T1,192.168.11.101,https-servers,'443'
+http-servers-vip,T1,192.168.11.102,http-servers,'80'
+http-proxy-servers-vip,T1,192.168.11.103,http-proxy-servers,'8080'
+https-proxy-servers-vip,T1,192.168.11.104,https-proxy-servers,'8081'
+
