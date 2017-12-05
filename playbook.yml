@@ -21,22 +21,22 @@
 #
 #############################################################################################
 
-- name: Read F5 configuration details from csv files 
+- name: Read F5 configuration details from csv files
   hosts: localhost
   roles:
     - role: mkouhei.include_csv
   tasks:
-    - include_csv: src=./partition-route-domain.csv
+    - include_csv: src=./partition_route_domain.csv
     - include_csv: src=./vlans.csv
-    - include_csv: src=./vlans-route-domains.csv
-    - include_csv: src=./self-ips.csv
-    - include_csv: src=./default-routes.csv
-    - include_csv: src=./icmp-monitors.csv
-    - include_csv: src=./tcp-monitors.csv
+    - include_csv: src=./vlans_route_domains.csv
+    - include_csv: src=./self_ips.csv
+    - include_csv: src=./default_routes.csv
+    - include_csv: src=./icmp_monitors.csv
+    - include_csv: src=./tcp_monitors.csv
     - include_csv: src=./nodes.csv
-    - include_csv: src=./ltm-pools.csv
-    - include_csv: src=./nodes-ltm-pools.csv
-    - include_csv: src=./virtual-servers.csv
+    - include_csv: src=./ltm_pools.csv
+    - include_csv: src=./nodes_ltm_pools.csv
+    - include_csv: src=./virtual_servers.csv
 
 - name: BIG IP Configuration
   hosts: ansible-big-ip
@@ -46,7 +46,7 @@
     F5_SERVER: "{{ inventory_hostname }}"
 
   tasks:
-  - name: Configuring partitions and route-domains (partition-route-domain.csv)
+  - name: Configuring partitions and route-domains (partition_route_domain.csv)
     bigip_command:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -57,7 +57,7 @@
         - "create auth partition {{ item.partition }}"
         - "create net route-domain /{{ item.partition }}/rd_{{ item.partition }} { id {{ item.rd_id }} }"
         - "modify auth partition {{ item.partition }} { default-route-domain {{ item.rd_id }} }"
-    with_items: "{{hostvars.localhost.partition-route-domain}}"
+    with_items: "{{hostvars.localhost.partition_route_domain}}"
 
     delegate_to: localhost
 
@@ -84,7 +84,7 @@
 
   -  debug: var=print_output
 
-  - name: Associate VLANs with correct route-domains (vlans-route-domains.csv)
+  - name: Associate VLANs with correct route-domains (vlans_route_domains.csv)
     bigip_command:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -93,7 +93,7 @@
       validate_certs: "{{ F5_VALIDATE_CERTS }}"
       commands:
         - "modify net route-domain /{{ item.partition }}/rd_{{ item.partition }} vlans add { {{ item.vlan }} }"
-    with_items: "{{hostvars.localhost.vlans-route-domains}}"
+    with_items: "{{hostvars.localhost.vlans_route_domains}}"
 
     delegate_to: localhost
 
@@ -101,7 +101,7 @@
 
   -  debug: var=print_output
 
-  - name: Configuring Self IPs (self-ips.csv)
+  - name: Configuring Self IPs (self_ips.csv)
     bigip_selfip:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -116,15 +116,15 @@
       partition: "{{ item.partition }}"
       allow_service: "{{ item.allow }}"
       traffic_group: "{{ item.trafficgroup }}"
-    with_items: "{{hostvars.localhost.self-ips}}"
-    
+    with_items: "{{hostvars.localhost.self_ips}}"
+
     delegate_to: localhost
 
     register: print_output
 
   -  debug: var=print_output
 
-  - name: Creating default routes for each route-domain (default-routes.csv)
+  - name: Creating default routes for each route-domain (default_routes.csv)
     bigip_command:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -133,7 +133,7 @@
       validate_certs: "{{ F5_VALIDATE_CERTS }}"
       commands:
         - "create net route /{{ item.partition }}/default-route { network 0.0.0.0/0 gw {{ item.gateway }} }"
-    with_items: "{{hostvars.localhost.default-routes}}"
+    with_items: "{{hostvars.localhost.default_routes}}"
 
     delegate_to: localhost
 
@@ -141,7 +141,7 @@
 
   -  debug: var=print_output
 
-  - name: Creating ICMP monitors which will be associated with nodes (icmp-monitors.csv)
+  - name: Creating ICMP monitors which will be associated with nodes (icmp_monitors.csv)
     bigip_command:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -150,7 +150,7 @@
       validate_certs: "{{ F5_VALIDATE_CERTS }}"
       commands:
         - "create ltm monitor icmp /{{ item.partition }}/icmp { defaults-from /Common/icmp interval {{ item.interval }} timeout {{ item.timeout }} time-until-up {{ item.timeuntilup }} }"
-    with_items: "{{hostvars.localhost.icmp-monitors}}"
+    with_items: "{{hostvars.localhost.icmp_monitors}}"
 
     delegate_to: localhost
 
@@ -180,7 +180,7 @@
 
   -  debug: var=print_output
 
-  - name: Configuring TCP Monitors (tcp-monitors.csv)
+  - name: Configuring TCP Monitors (tcp_monitors.csv)
     bigip_monitor_tcp_half_open:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -194,7 +194,7 @@
       interval: 2
       timeout: 4
       time_until_up: 4
-    with_items: "{{hostvars.localhost.tcp-monitors}}"
+    with_items: "{{hostvars.localhost.tcp_monitors}}"
 
     delegate_to: localhost
 
@@ -202,7 +202,7 @@
 
   -  debug: var=print_output
 
-  - name: Creating LTM pools (ltm-pools.csv)
+  - name: Creating LTM pools (ltm_pools.csv)
     bigip_pool:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -215,7 +215,7 @@
       lb_method: "round_robin"
       monitors: "{{ item.monitors }}"
       monitor_type: "and_list"
-    with_items: "{{hostvars.localhost.ltm-pools}}"
+    with_items: "{{hostvars.localhost.ltm_pools}}"
 
     delegate_to: localhost
 
@@ -223,7 +223,7 @@
 
   -  debug: var=print_output
 
-  - name: Assigning nodes to LTM pools (nodes-ltm-pools.csv)
+  - name: Assigning nodes to LTM pools (nodes_ltm_pools.csv)
     bigip_pool_member:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -235,7 +235,7 @@
       partition: "{{ item.partition }}"
       port: "{{ item.port }}"
       host: "{{ item.hosts }}"
-    with_items: "{{hostvars.localhost.nodes-ltm-pools}}"
+    with_items: "{{hostvars.localhost.nodes_ltm_pools}}"
 
     delegate_to: localhost
 
@@ -243,7 +243,7 @@
 
   -  debug: var=print_output
 
-  - name: Creating LTM virtual-servers (virtual-servers.csv)
+  - name: Creating LTM virtual-servers (virtual_servers.csv)
     bigip_virtual_server:
       server: "{{ F5_SERVER }}"
       user: "{{ F5_USER }}"
@@ -259,7 +259,7 @@
       all_profiles:
         - /Common/fastL4
       snat: None
-    with_items: "{{hostvars.localhost.virtual-servers}}"
+    with_items: "{{hostvars.localhost.virtual_servers}}"
 
     delegate_to: localhost
 
