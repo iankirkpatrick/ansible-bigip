@@ -1,0 +1,5 @@
+name,partition,port
+tcp_443,T1,443
+tcp_80,T1,80
+tcp_8080,T1,8080
+tcp_8081,T1,8081

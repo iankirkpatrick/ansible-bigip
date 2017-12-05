@@ -1,0 +1,10 @@
+partition,interval,timeout,timeuntilup
+T1,2,4,4
+T2-APP1,2,4,4
+T2-APP2,2,4,4
+T2-APP3,2,4,4
+T3-DB1,2,4,4
+T3-DB2,2,4,4
+T3-DB3,2,4,4
+APP-MGMT,2,4,4
+MONITORING,2,4,4

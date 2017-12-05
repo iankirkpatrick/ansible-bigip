@@ -21,7 +21,8 @@ F5_VALIDATE_CERTS=NO<br>
 
 It is recommended that the inventory file is encrypted using ansible-vault to protect the account details. 
 
-The variables are currently defined in the playbook, you should adjust the playbook with your own network details. 
+The variables are read from formatted csv files, the playbook is supplied with sample csv files, you should replace the dats in the csv files with your own.
+The playbook indicates which files should be adjusted for each configuration task.  
 
 The playbook currently configures the following:
 
