@@ -6,6 +6,9 @@ The playbook requires that the following dependencies have been met before first
 1. F5 is connected to network
 2. MGMT IP assigned
 3. F5 has been licensed and initial configuration has been completed
+4. Ansible role installed using ansible-galaxy
+
+ansible-galaxy role install mkouhei.include_csv
 
 This playbook relies on the following variables being defined in the inventory file.
 An example would be as follows:
@@ -21,7 +24,7 @@ F5_VALIDATE_CERTS=NO<br>
 
 It is recommended that the inventory file is encrypted using ansible-vault to protect the account details. 
 
-The variables are read from formatted csv files, the playbook is supplied with sample csv files, you should replace the dats in the csv files with your own.
+The variables are read from formatted csv files, the playbook is supplied with sample csv files, you should replace the data in the csv files with your own.
 The playbook indicates which files should be adjusted for each configuration task.  
 
 The playbook currently configures the following:
@@ -45,10 +48,10 @@ Virtual-Servers with SSL offloading and or Source NAT<br>
 Source-NAT pools<br>
 iRules<br>
 
-# Tested with the software versions
+# Tested with the following software versions
 
-BIGIP 11.6.1<br>
-Ansible 2.4<br>
+BIGIP 14.1.2.3<br>
+Ansible 2.9<br>
 
 
 

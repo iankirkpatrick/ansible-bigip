@@ -17,7 +17,7 @@
 # The csv files have been supplied with sample data, please replace this data with your own configuration items. Just ensure that the first row is retained with the column names
 # as these are used as the item.<column> variable in the playbook
 #
-# This playbook has been developed using BIG-IP 11.6.1 and Ansible 2.4
+# This playbook has been developed using BIG-IP 14.1.2.3 and Ansible 2.9
 #
 #############################################################################################
 
@@ -39,24 +39,59 @@
     - include_csv: src=./virtual_servers.csv
 
 - name: BIG IP Configuration
-  hosts: ansible-big-ip
+  hosts: f5-devices
   connection: local
 
   vars:
     F5_SERVER: "{{ inventory_hostname }}"
 
   tasks:
-  - name: Configuring partitions and route-domains (partition_route_domain.csv)
-    bigip_command:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
-      commands:
-        - "create auth partition {{ item.partition }}"
-        - "create net route-domain /{{ item.partition }}/rd_{{ item.partition }} { id {{ item.rd_id }} }"
-        - "modify auth partition {{ item.partition }} { default-route-domain {{ item.rd_id }} }"
+  - name: Create partitions using the default route domain
+    bigip_partition:
+      name: "{{ item.partition }}"
+      provider:
+        password: "{{ F5_PASSWORD }}"
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
+    with_items: "{{hostvars.localhost.partition_route_domain}}"
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Create route domains in partitions
+    bigip_routedomain:
+      id: "{{ item.rd_id }}"
+      name: "rd_{{ item.partition }}"
+      partition: "{{ item.partition }}"
+      provider:
+        password: "{{ F5_PASSWORD }}"
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
+    with_items: "{{hostvars.localhost.partition_route_domain}}"
+
+    delegate_to: localhost
+
+    register: print_output
+
+  -  debug: var=print_output
+
+  - name: Make route-domains default in assigned partitions
+    bigip_partition:
+      route_domain: "{{ item.rd_id }}"
+      name: "{{ item.partition }}"
+      provider:
+        password: "{{ F5_PASSWORD }}"
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
     with_items: "{{hostvars.localhost.partition_route_domain}}"
 
     delegate_to: localhost
@@ -67,11 +102,12 @@
 
   - name: Configuring VLANS (vlans.csv)
     bigip_vlan:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      provider:
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
       tagged_interface: "{{ item.tag_int }}"
       name: "{{ item.name }}"
       tag: "{{ item.tag }}"
@@ -84,30 +120,32 @@
 
   -  debug: var=print_output
 
-  - name: Associate VLANs with correct route-domains (vlans_route_domains.csv)
-    bigip_command:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
-      commands:
-        - "modify net route-domain /{{ item.partition }}/rd_{{ item.partition }} vlans add { {{ item.vlan }} }"
-    with_items: "{{hostvars.localhost.vlans_route_domains}}"
+    #  - name: Associate VLANs with correct route-domains (vlans_route_domains.csv)
+    #bigip_command:
+    #  provider:
+    #    server: "{{ F5_SERVER }}"
+    #    user: "{{ F5_USER }}"
+    #    password: "{{ F5_PASSWORD }}"
+    #    server_port: "{{ F5_SERVER_PORT }}"
+    #    validate_certs: "{{ F5_VALIDATE_CERTS }}"
+    #    commands:
+    #    - "modify net route-domain /{{ item.partition }}/rd_{{ item.partition }} vlans add { {{ item.vlan }} }"
+    #with_items: "{{hostvars.localhost.vlans_route_domains}}"
 
-    delegate_to: localhost
+    #delegate_to: localhost
 
-    register: print_output
+    #register: print_output
 
-  -  debug: var=print_output
+    #-  debug: var=print_output
 
   - name: Configuring Self IPs (self_ips.csv)
     bigip_selfip:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      provider:
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
       vlan: "{{ item.vlan }}"
       name: "{{ item.type }}_{{ item.vlan }}"
       address: "{{ item.ipaddr }}"
@@ -125,14 +163,18 @@
   -  debug: var=print_output
 
   - name: Creating default routes for each route-domain (default_routes.csv)
-    bigip_command:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
-      commands:
-        - "create net route /{{ item.partition }}/default-route { network 0.0.0.0/0 gw {{ item.gateway }} }"
+    bigip_static_route:
+      provider: 
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      name: "default-route"
+      destination: 0.0.0.0
+      netmask: 0.0.0.0
+      gateway_address: "{{ item.gateway }}"
+      partition: "{{ item.partition }}"
     with_items: "{{hostvars.localhost.default_routes}}"
 
     delegate_to: localhost
@@ -143,11 +185,12 @@
 
   - name: Creating ICMP monitors which will be associated with nodes (icmp_monitors.csv)
     bigip_command:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      provider: 
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
       commands:
         - "create ltm monitor icmp /{{ item.partition }}/icmp { defaults-from /Common/icmp interval {{ item.interval }} timeout {{ item.timeout }} time-until-up {{ item.timeuntilup }} }"
     with_items: "{{hostvars.localhost.icmp_monitors}}"
@@ -160,11 +203,12 @@
 
   - name: Configuring nodes (nodes.csv)
     bigip_node:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      provider:
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
       state: "present"
       partition: "{{ item.partition }}"
       host: "{{ item.ip_address }}"
@@ -182,12 +226,14 @@
 
   - name: Configuring TCP Monitors (tcp_monitors.csv)
     bigip_monitor_tcp_half_open:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      provider:
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
       state: "present"
+      ip: "*"
       name: "{{ item.name }}"
       partition: "{{ item.partition }}"
       port: "{{ item.port }}"
@@ -204,15 +250,15 @@
 
   - name: Creating LTM pools (ltm_pools.csv)
     bigip_pool:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      provider:
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
       state: "present"
       name: "{{ item.name }}"
       partition: "{{ item.partition }}"
-      lb_method: "round_robin"
       monitors: "{{ item.monitors }}"
       monitor_type: "and_list"
     with_items: "{{hostvars.localhost.ltm_pools}}"
@@ -225,16 +271,18 @@
 
   - name: Assigning nodes to LTM pools (nodes_ltm_pools.csv)
     bigip_pool_member:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      provider:
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
       state: "present"
       pool: "{{ item.name }}"
       partition: "{{ item.partition }}"
       port: "{{ item.port }}"
-      host: "{{ item.hosts }}"
+      name: "{{ item.hosts }}"
+      address: "{{ item.address }}"
     with_items: "{{hostvars.localhost.nodes_ltm_pools}}"
 
     delegate_to: localhost
@@ -245,19 +293,18 @@
 
   - name: Creating LTM virtual-servers (virtual_servers.csv)
     bigip_virtual_server:
-      server: "{{ F5_SERVER }}"
-      user: "{{ F5_USER }}"
-      password: "{{ F5_PASSWORD }}"
-      server_port: "{{ F5_SERVER_PORT }}"
-      validate_certs: "{{ F5_VALIDATE_CERTS }}"
-      state: "present"
+      provider:
+        server: "{{ F5_SERVER }}"
+        user: "{{ F5_USER }}"
+        password: "{{ F5_PASSWORD }}"
+        server_port: "{{ F5_SERVER_PORT }}"
+        validate_certs: "{{ F5_VALIDATE_CERTS }}"
+      state: present
       name: "{{ item.name }}"
       partition: "{{ item.partition }}"
       destination: "{{ item.destination }}"
       port: "{{ item.port }}"
       pool: "{{ item.pool }}"
-      all_profiles:
-        - /Common/fastL4
       snat: None
     with_items: "{{hostvars.localhost.virtual_servers}}"
 
