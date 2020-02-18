@@ -120,24 +120,6 @@
 
   -  debug: var=print_output
 
-    #  - name: Associate VLANs with correct route-domains (vlans_route_domains.csv)
-    #bigip_command:
-    #  provider:
-    #    server: "{{ F5_SERVER }}"
-    #    user: "{{ F5_USER }}"
-    #    password: "{{ F5_PASSWORD }}"
-    #    server_port: "{{ F5_SERVER_PORT }}"
-    #    validate_certs: "{{ F5_VALIDATE_CERTS }}"
-    #    commands:
-    #    - "modify net route-domain /{{ item.partition }}/rd_{{ item.partition }} vlans add { {{ item.vlan }} }"
-    #with_items: "{{hostvars.localhost.vlans_route_domains}}"
-
-    #delegate_to: localhost
-
-    #register: print_output
-
-    #-  debug: var=print_output
-
   - name: Configuring Self IPs (self_ips.csv)
     bigip_selfip:
       provider:
